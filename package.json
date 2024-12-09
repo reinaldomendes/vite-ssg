@@ -77,7 +77,8 @@
     "build": "unbuild",
     "prepublishOnly": "npm run build",
     "typecheck": "vue-tsc --noEmit",
-    "release": "bumpp && pnpm publish"
+    "release": "bumpp && pnpm publish",
+    "postinstall": "pnpm build"
   },
   "peerDependencies": {
     "beasties": "^0.1.0",
