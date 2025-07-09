@@ -71,7 +71,7 @@ export interface WorkerDataEntry {
     // onDonePageRender,
   } = config.ssgOptions || {}
 
-  let beasties:Critters | Beasties | undefined = undefined
+  // let beasties:Critters | Beasties | undefined = undefined
 
   const { renderToString }: typeof import('vue/server-renderer') = await import('vue/server-renderer')  
   const outDir = out.replace(process.cwd(), '').replace(/^\//g, '')

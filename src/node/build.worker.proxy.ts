@@ -28,7 +28,7 @@ export class BuildWorkerProxy {
       // let msg = args.map((arg:any) => typeof arg === 'object' && !!arg ? "[object]" : arg).join(' ')
       const workerId = options.workerData.workerId
       // process.stdout.write(`[${workerId}] ${msg}\n`)
-      fn?.(`[woker #${workerId}] `, ...args, reset(''))
+      fn?.(`[woker #${workerId}] `, ...args.map((arg:any) => typeof arg === 'string' ? arg.replace(/\n$/g, '') : arg), reset(''))
     })
 
     this.worker.on('message', (message) => {
