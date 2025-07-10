@@ -1,7 +1,7 @@
 {
   "name": "vite-ssg-optimized",
   "type": "module",
-  "version": "0.28.0-optimized.1",
+  "version": "0.28.0-optimized.2",
   "packageManager": "pnpm@10.12.4",
   "description": "Server-side generation for Vite",
   "author": "Anthony Fu <anthonyfu117@hotmail.com>",
