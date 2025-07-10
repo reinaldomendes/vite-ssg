@@ -10,6 +10,7 @@ import { createMemoryHistory, createRouter, createWebHistory } from 'vue-router'
 import { documentReady } from '../utils/document-ready'
 import { deserializeState } from '../utils/state'
 import { ClientOnly } from './components/ClientOnly'
+import { getImportMetaEnv } from './metaEnv'
 
 export * from '../types'
 
@@ -26,21 +27,22 @@ export function ViteSSG(
     rootContainer = '#app',
   } = options ?? {}
 
+  const importMetaEnv = getImportMetaEnv()
 
   async function createApp(routePath?: string) {
-    const isClient = !import.meta.env.SSR
+    const isClient = !importMetaEnv.SSR
     const isHydrationMode = options?.hydration || (isClient && document.querySelectorAll('[data-server-rendered]').length > 0)
-    const app = import.meta.env.SSR || isHydrationMode
+    const app = importMetaEnv.SSR || isHydrationMode
       ? createClientApp(App)
       : createSSRApp(App)
 
     let head: VueHeadClient | undefined
     if (useHead) {
-      app.use(head = import.meta.env.SSR ? createSSRHead() : createHead())
+      app.use(head = importMetaEnv.SSR ? createSSRHead() : createHead())
     }
 
     const router = createRouter({
-      history: import.meta.env.SSR
+      history: importMetaEnv.SSR
         ? createMemoryHistory(routerOptions.base)
         : createWebHistory(routerOptions.base),
       ...routerOptions,
@@ -52,7 +54,7 @@ export function ViteSSG(
       app.component('ClientOnly', ClientOnly)
 
     const appRenderCallbacks: (() => void)[] = []
-    const onSSRAppRendered = import.meta.env.SSR
+    const onSSRAppRendered = importMetaEnv.SSR
       ? (cb: () => void) => appRenderCallbacks.push(cb)
       : () => {}
     const triggerOnSSRAppRendered = () => {
@@ -61,7 +63,7 @@ export function ViteSSG(
     const context: ViteSSGContext<true> = {
       app,
       head,
-      isClient: !import.meta.env.SSR,
+      isClient: !importMetaEnv.SSR,
       router,
       routes,
       onSSRAppRendered,
@@ -71,7 +73,7 @@ export function ViteSSG(
       routePath,
     }
 
-    if (!import.meta.env.SSR) {
+    if (!importMetaEnv.SSR) {
       await documentReady()
       // @ts-expect-error global variable
       context.initialState = transformState?.(window.__INITIAL_STATE__ || {}) || deserializeState(window.__INITIAL_STATE__)
@@ -94,7 +96,7 @@ export function ViteSSG(
       next()
     })
 
-    if (import.meta.env.SSR) {
+    if (importMetaEnv.SSR) {
       const route = context.routePath ?? '/'
       router.push(route)
 
@@ -110,7 +112,7 @@ export function ViteSSG(
     } as ViteSSGContext<true>
   }
 
-  if (!import.meta.env.SSR) {
+  if (!importMetaEnv.SSR) {
     (async () => {
       const { app, router } = await createApp()
       // wait until page component is fetched before mounting

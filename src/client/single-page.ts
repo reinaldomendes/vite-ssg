@@ -13,6 +13,7 @@ import { createApp as createClientApp, createSSRApp } from 'vue'
 import { documentReady } from '../utils/document-ready'
 import { deserializeState } from '../utils/state'
 import { ClientOnly } from './components/ClientOnly'
+import { getImportMetaEnv } from './metaEnv'
 
 export * from '../types'
 
@@ -21,6 +22,7 @@ export function ViteSSG(
   fn?: (context: ViteSSGContext<false>) => Promise<void> | void,
   options?: ViteSSGClientOptions,
 ) {
+  const importMetaEnv = getImportMetaEnv()
   const {
     transformState,
     registerComponents = true,
@@ -29,20 +31,20 @@ export function ViteSSG(
   } = options ?? {}
 
   async function createApp() {
-    const isClient = !import.meta.env.SSR
+    const isClient = !importMetaEnv.SSR
     const isHydrationMode = options?.hydration || (isClient && document.querySelectorAll('[data-server-rendered]').length > 0)
-    const app = import.meta.env.SSR || isHydrationMode
+    const app = importMetaEnv.SSR || isHydrationMode
       ? createSSRApp(App)
       : createClientApp(App)
 
     let head: VueHeadClient | undefined
 
     if (useHead) {
-      app.use(head = (import.meta.env.SSR ? createSSRHead() : createHead()))
+      app.use(head = (importMetaEnv.SSR ? createSSRHead() : createHead()))
     }
 
     const appRenderCallbacks: (() => void)[] = []
-    const onSSRAppRendered = import.meta.env.SSR
+    const onSSRAppRendered = importMetaEnv.SSR
       ? (cb: () => void) => appRenderCallbacks.push(cb)
       : () => {}
     const triggerOnSSRAppRendered = () => {
@@ -51,7 +53,7 @@ export function ViteSSG(
     const context: ViteSSGContext<false> = {
       app,
       head,
-      isClient: !import.meta.env.SSR,
+      isClient: !importMetaEnv.SSR,
       router: undefined,
       routes: undefined,
       initialState: {},
@@ -63,7 +65,7 @@ export function ViteSSG(
     if (registerComponents)
       app.component('ClientOnly', ClientOnly)
 
-    if (!import.meta.env.SSR) {
+    if (!importMetaEnv.SSR) {
       await documentReady()
       // @ts-expect-error global variable
       context.initialState = transformState?.(window.__INITIAL_STATE__ || {}) || deserializeState(window.__INITIAL_STATE__)
@@ -80,7 +82,7 @@ export function ViteSSG(
     } as ViteSSGContext<false>
   }
 
-  if (!import.meta.env.SSR) {
+  if (!importMetaEnv.SSR) {
     (async () => {
       const { app } = await createApp()
       app.mount(rootContainer, true)
