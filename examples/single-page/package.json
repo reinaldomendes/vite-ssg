@@ -14,6 +14,6 @@
     "@vitejs/plugin-vue": "catalog:",
     "typescript": "catalog:",
     "vite": "catalog:",
-    "vite-ssg": "workspace:*"
+    "vite-ssg-optimized": "workspace:*"
   }
 }

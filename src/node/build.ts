@@ -86,7 +86,7 @@ export async function buildServer(config: ResolvedConfig, viteConfig: InlineConf
     },
     mode: config.mode,
     ssr: {
-      noExternal: ['vite-ssg'],
+      noExternal: ['vite-ssg-optimized'],
     },
   }))
 }

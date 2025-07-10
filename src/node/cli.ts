@@ -3,7 +3,7 @@ import { bold, gray, red } from 'ansis'
 import { cac } from 'cac'
 import { build } from './build'
 
-const cli = cac('vite-ssg')
+const cli = cac('vite-ssg-optimized')
 
 cli
   .command('build', 'Build SSG')

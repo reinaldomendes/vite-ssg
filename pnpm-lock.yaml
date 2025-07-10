@@ -19,8 +19,8 @@ catalogs:
       specifier: ^21.1.7
       version: 21.1.7
     '@unhead/ssr':
-      specifier: ~1.11.13
-      version: 1.11.13
+      specifier: ~2.0.11
+      version: 2.0.12
     '@unhead/vue':
       specifier: ^2.0.11
       version: 2.0.12
@@ -112,7 +112,7 @@ importers:
     dependencies:
       '@unhead/ssr':
         specifier: 'catalog:'
-        version: 1.11.13
+        version: 2.0.12(unhead@2.0.12)
       '@unhead/vue':
         specifier: 'catalog:'
         version: 2.0.12(vue@3.5.17(typescript@5.8.3))
@@ -217,7 +217,7 @@ importers:
       vite-plugin-pages:
         specifier: 'catalog:'
         version: 0.33.1(@vue/compiler-sfc@3.5.17)(vite@7.0.3(jiti@2.4.2)(terser@5.33.0)(tsx@4.20.3)(yaml@2.8.0))(vue-router@4.5.1(vue@3.5.17(typescript@5.8.3)))
-      vite-ssg:
+      vite-ssg-optimized:
         specifier: workspace:*
         version: link:../..
       vue-router:
@@ -251,7 +251,7 @@ importers:
       vite-plugin-pwa:
         specifier: 'catalog:'
         version: 1.0.1(vite@7.0.3(jiti@2.4.2)(terser@5.33.0)(tsx@4.20.3)(yaml@2.8.0))(workbox-build@7.3.0)(workbox-window@7.3.0)
-      vite-ssg:
+      vite-ssg-optimized:
         specifier: workspace:*
         version: link:../..
       vue-router:
@@ -294,7 +294,7 @@ importers:
       vite-plugin-pages:
         specifier: 'catalog:'
         version: 0.33.1(@vue/compiler-sfc@3.5.17)(vite@7.0.3(jiti@2.4.2)(terser@5.33.0)(tsx@4.20.3)(yaml@2.8.0))(vue-router@4.5.1(vue@3.5.17(typescript@5.8.3)))
-      vite-ssg:
+      vite-ssg-optimized:
         specifier: workspace:*
         version: link:../..
       vue-router:
@@ -319,7 +319,7 @@ importers:
       vite:
         specifier: ^7.0.0
         version: 7.0.3(jiti@2.4.2)(terser@5.33.0)(tsx@4.20.3)(yaml@2.8.0)
-      vite-ssg:
+      vite-ssg-optimized:
         specifier: workspace:*
         version: link:../..
 
@@ -1656,14 +1656,10 @@ packages:
     resolution: {integrity: sha512-vZrhV2lRPWDuGoxcmrzRZyxAggPL+qp3WzUrlZD+slFueDiYHxeBa34dUXPuC0RmGKzl4lS5kFJYvKCq9cnNDA==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
-  '@unhead/schema@1.11.13':
-    resolution: {integrity: sha512-fIpQx6GCpl99l4qJXsPqkXxO7suMccuLADbhaMSkeXnVEi4ZIle+l+Ri0z+GHAEpJj17FMaQdO5n9FMSOMUxkw==}
-
-  '@unhead/shared@1.11.13':
-    resolution: {integrity: sha512-EiJ3nsEtf6dvZ6OwVYrrrrCUl4ZE/9GTjpexEMti8EJXweSuL7SifNNXtIFk7UMoM0ULYxb7K/AKQV/odwoZyQ==}
-
-  '@unhead/ssr@1.11.13':
-    resolution: {integrity: sha512-LjomDIH8vXbnQQ8UVItmJ52BZBOyK12i1Q4W658X/f0VGtm0z3AulGQIvYla0rFcxAynDygfvWSC7xrlqDtRUw==}
+  '@unhead/ssr@2.0.12':
+    resolution: {integrity: sha512-g3ZiuP4wRGAfyzjQoOECpEw8VuyRKQ7voRwhz2eMULfXYiTu3DuhtXxVQ0fj83ZAdymG2zwlo2awMK7toqGcGw==}
+    peerDependencies:
+      unhead: 2.0.12
 
   '@unhead/vue@2.0.12':
     resolution: {integrity: sha512-WFaiCVbBd39FK6Bx3GQskhgT9s45Vjx6dRQegYheVwU1AnF+FAfJVgWbrl21p6fRJcLAFp0xDz6wE18JYBM0eQ==}
@@ -4531,9 +4527,6 @@ packages:
     resolution: {integrity: sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q==}
     engines: {node: '>=10'}
 
-  zhead@2.2.4:
-    resolution: {integrity: sha512-8F0OI5dpWIA5IGG5NHUg9staDwz/ZPxZtvGVf01j7vHqSyZ0raHY+78atOVxRqb73AotX22uV1pXt3gYSstGag==}
-
   zwitch@2.0.4:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==}
 
@@ -5981,19 +5974,9 @@ snapshots:
       '@typescript-eslint/types': 8.36.0
       eslint-visitor-keys: 4.2.1
 
-  '@unhead/schema@1.11.13':
+  '@unhead/ssr@2.0.12(unhead@2.0.12)':
     dependencies:
-      hookable: 5.5.3
-      zhead: 2.2.4
-
-  '@unhead/shared@1.11.13':
-    dependencies:
-      '@unhead/schema': 1.11.13
-
-  '@unhead/ssr@1.11.13':
-    dependencies:
-      '@unhead/schema': 1.11.13
-      '@unhead/shared': 1.11.13
+      unhead: 2.0.12
 
   '@unhead/vue@2.0.12(vue@3.5.17(typescript@5.8.3))':
     dependencies:
@@ -9362,7 +9345,5 @@ snapshots:
   yaml@2.8.0: {}
 
   yocto-queue@0.1.0: {}
-
-  zhead@2.2.4: {}
 
   zwitch@2.0.4: {}
