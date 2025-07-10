@@ -30,9 +30,9 @@ export function ViteSSG(
   const importMetaEnv = getImportMetaEnv()
 
   async function createApp(routePath?: string) {
-    const isClient = !importMetaEnv.SSR
-    const isHydrationMode = options?.hydration || (isClient && document.querySelectorAll('[data-server-rendered]').length > 0)
-    const app = importMetaEnv.SSR || isHydrationMode
+    const isClient = !importMetaEnv.SSR;
+    const isHydrationMode = options?.hydration || isClient && document.querySelectorAll("[data-server-rendered]").length > 0;    
+    const app = isClient && !isHydrationMode
       ? createClientApp(App)
       : createSSRApp(App)
 

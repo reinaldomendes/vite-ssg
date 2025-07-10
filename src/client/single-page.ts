@@ -31,11 +31,11 @@ export function ViteSSG(
   } = options ?? {}
 
   async function createApp() {
-    const isClient = !importMetaEnv.SSR
-    const isHydrationMode = options?.hydration || (isClient && document.querySelectorAll('[data-server-rendered]').length > 0)
-    const app = importMetaEnv.SSR || isHydrationMode
-      ? createSSRApp(App)
-      : createClientApp(App)
+    const isClient = !importMetaEnv.SSR;
+    const isHydrationMode = options?.hydration || isClient && document.querySelectorAll("[data-server-rendered]").length > 0;    
+    const app = isClient && !isHydrationMode
+      ? createClientApp(App)
+      : createSSRApp(App)
 
     let head: VueHeadClient | undefined
 
