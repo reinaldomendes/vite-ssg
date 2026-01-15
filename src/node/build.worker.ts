@@ -71,8 +71,7 @@ export interface WorkerDataEntry {
     // onDonePageRender,
     onFinished,
   } = config.ssgOptions || {}
-
-  let beasties:Critters | Beasties | undefined = undefined
+  
 
   const { renderToString }: typeof import('vue/server-renderer') = await import('vue/server-renderer')  
   const outDir = out.replace(process.cwd(), '').replace(/^\//g, '')
@@ -81,6 +80,19 @@ export interface WorkerDataEntry {
 
   let createAppPromise:Promise<CreateAppFactory>|undefined = undefined 
   let beastiesPromise:Promise<Critters | Beasties | undefined>|undefined = undefined;
+  interface CancelablePromise<T> extends Promise<T> {
+    cancel: () => void
+  }
+  function cancelablePromise<T>(promise:Promise<T>):CancelablePromise<T> {
+    let cancel = () => void(0);
+    const newPromise = new Promise<T>((resolve, reject) => {
+      cancel = () => void(reject(new Error('Cancelled')));
+      promise.then((result) => {        
+        resolve(result);
+      });
+    });    
+    return Object.assign(newPromise, {cancel}) as CancelablePromise<T>
+  }
   
   const execMap:{
     executeTaskFn: (opts: ExecuteInWorkerOptions) => ReturnType<typeof executeTaskFn>,
@@ -115,7 +127,14 @@ export interface WorkerDataEntry {
         }}},
         ...opts,
       }
-      return executeTaskFn(newOpts)
+      const resultPromise = cancelablePromise(executeTaskFn(newOpts))
+      const cancel = async () => {
+        resultPromise.cancel()       
+      }
+      process.once('beforeExit', cancel)      
+      process.once('SIGINT', cancel)
+      process.once('SIGTERM', cancel)      
+      return resultPromise
     },
     onFinished,
     buildClient: async (...args:any[]):Promise<void> => {

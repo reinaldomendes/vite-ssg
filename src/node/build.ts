@@ -173,6 +173,10 @@ export async function build(ssgOptions: Partial<ViteSSGOptions & { 'skip-build'?
       ...createProxyOptions,
       workerId: 'client',
     })
+    clientWorker.on('unhandledRejection', (error) => {
+      console.error(error)
+      clientWorker.terminate()
+    })
     // await buildClient(config, viteConfig)
     const cpBuildClient =  execInWorker(clientWorker, buildClient, config, viteConfig).finally(() => clientWorker.terminate())
     buildPromises.push(cpBuildClient)
