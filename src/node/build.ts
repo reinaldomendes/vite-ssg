@@ -647,7 +647,7 @@ async function renderHTML({
     return { match, append: value }
   })
 
-  const stateScript = initialState ? `\n<script>window.__INITIAL_STATE__=${initialState}<\/script>\n` : ''
+  const stateScript = initialState ? `\n<script>//<!--\nwindow.__INITIAL_STATE__=${initialState}\n//--><\/script>\n` : ''
   const injectOptions: InjectOptions[] = [
     { match: { tag: 'html' }, attrs: ssrHead.htmlAttrs },
     { match: { tag: 'head' }, prepend: ssrHead.headTags, removeChildren: [{ tag: 'title' }] },
