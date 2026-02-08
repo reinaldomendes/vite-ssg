@@ -60,6 +60,9 @@ export class BuildWorkerProxy {
   once(type: string, listener: (...args: any[]) => void) {
     this.worker.once(type, listener)
   }
+  unref() {
+    this.worker.unref()
+  }
 
 
   async send(type: string, args: any[]) : Promise<any> {

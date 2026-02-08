@@ -319,7 +319,8 @@ export async function build(ssgOptions: Partial<ViteSSGOptions & { 'skip-build'?
         workerId: lastWorkerIndex
       })    
       workers[index] = newWorkerProxy
-      Promise.allSettled([...workerPromises, Promise.resolve()]).then(async () => {      
+      Promise.allSettled([...workerPromises, Promise.resolve()]).then(async () => {
+        await new Promise(resolve => setTimeout(resolve, 4))
         await terminateWorker(workerProxy, onFinished)
       })
       
@@ -328,10 +329,27 @@ export async function build(ssgOptions: Partial<ViteSSGOptions & { 'skip-build'?
 
 
   const queue = new PQueue({ concurrency })
+  let shouldBreak = false;
+  const breakHandler = () => {
+    shouldBreak = true;
+    workers.forEach(worker => worker.unref())
+  }
+  process.once('SIGINT', breakHandler)
+  process.once('SIGTERM', breakHandler)
+  process.once('beforeExit', breakHandler)
+  process.once('exit', breakHandler)
  
   for (const route of routesPaths) {
+    if (shouldBreak) {     
+      console.log(`${gray('[vite-ssg]')} ${yellow('Build process interrupted.')}`)
+      break;      
+    }
     await queue.onSizeLessThan(concurrency) // avoid grow the number of tasks in queue
     queue.add(async () => {  
+      if (shouldBreak) {     
+        console.log(`${gray('[vite-ssg]')} ${yellow('Build process interrupted.')}`)
+        return Promise.resolve();      
+      }
       let workerProxy = await selectWorker(workerIndex ++ % numberOfWorkers)
       const currentCount = (workerRunCount.get(workerProxy) ?? 0) + 1;
       workerRunCount.set(workerProxy, currentCount)
