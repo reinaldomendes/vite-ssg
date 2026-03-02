@@ -299,33 +299,58 @@ export async function build(ssgOptions: Partial<ViteSSGOptions & { 'skip-build'?
   // const { renderToString }: typeof import('vue/server-renderer') = await import('vue/server-renderer')
 
 
-    /* WeakMap<object,number> */
-    const workerRunCount = new WeakMap()
-  
-  
-    const MAX_RUNS_PER_WORKER=100;  
-    let lastWorkerIndex = workers.length - 1;
-    function replaceWorker(workerProxy:BuildWorkerProxy) {
-      const index = workers.indexOf(workerProxy)
-      if(index === -1){
-        return workerProxy
-      }
-      ++lastWorkerIndex
-      config.logger.info(`${blue("[vite-ssg]")} ${yellow(`Replace worker #${workerProxy.id} => #${lastWorkerIndex}`)}`)
-      
-      const workerPromises = workersInUse.get(workerProxy) || [];
-      const  newWorkerProxy = createProxy({
-        ...createProxyOptions,
-        workerId: lastWorkerIndex
-      })    
-      workers[index] = newWorkerProxy
-      Promise.allSettled([...workerPromises, Promise.resolve()]).then(async () => {
-        await new Promise(resolve => setTimeout(resolve, 4))
-        await terminateWorker(workerProxy, onFinished)
-      })
-      
-      return newWorkerProxy
+  /* WeakMap<object,number> */
+  const workerRunCount = new WeakMap()
+
+
+  const MAX_RUNS_PER_WORKER=100;  
+  let lastWorkerIndex = workers.length - 1;
+  const workerProxyMap = new Map<BuildWorkerProxy, Promise<BuildWorkerProxy>>();
+  const workerTransitionPromises:Promise<void>[] = [];
+  const pendingTasks = ():Promise<any>[] => {
+    return Array.from(workerProxyMap.keys()).map(worker => workersInUse.get(worker) || []).flat();
+  }
+
+  async function replaceWorker(workerProxy:BuildWorkerProxy):Promise<BuildWorkerProxy> {
+    if(workerProxyMap.has(workerProxy)){
+      return await workerProxyMap.get(workerProxy)!
     }
+    const index = workers.indexOf(workerProxy)
+    if(index === -1){
+      return workerProxy
+    }
+    ++lastWorkerIndex
+    config.logger.info(`${blue("[vite-ssg]")} ${yellow(`Replace worker #${workerProxy.id} => #${lastWorkerIndex}`)}`)
+    
+    const workerPromises = workersInUse.get(workerProxy) || [];
+    
+    
+    const transitionPromise = Promise.allSettled([...workerPromises, Promise.resolve()]).then(async () => {
+      await new Promise(resolve => setTimeout(resolve, 4))
+      await terminateWorker(workerProxy, onFinished)
+      workerTransitionPromises.splice(workerTransitionPromises.indexOf(transitionPromise), 1); //splice reference
+      workerProxyMap.delete(workerProxy) //delete reference at finish
+    })
+    workerTransitionPromises.push(transitionPromise)
+    workerProxyMap.set(workerProxy, Promise.resolve().then(async() => {
+        while (pendingTasks().length > (MAX_RUNS_PER_WORKER/5)) { //wait util less than 20% of the max runs per worker to avoid use too much memory
+          await new Promise(resolve => setTimeout(resolve, 300));
+
+        }
+        /** only 2 transition at time, wait util become available to create another proxy to avoid use too much memory */
+        while (workerTransitionPromises.length > 2) {
+          console.log(`${gray('[vite-ssg]')} ${yellow(`Waiting for worker transition to finish. ${workerTransitionPromises.length} transitions running`)}`)
+          await Promise.race(workerTransitionPromises);
+        }  
+        const  newWorkerProxy = createProxy({
+          ...createProxyOptions,
+          workerId: lastWorkerIndex
+        })    
+        workers[index] = newWorkerProxy
+        return newWorkerProxy;
+    }));
+    return await workerProxyMap.get(workerProxy)!
+  }
 
 
   const queue = new PQueue({ concurrency })
@@ -354,8 +379,8 @@ export async function build(ssgOptions: Partial<ViteSSGOptions & { 'skip-build'?
       const currentCount = (workerRunCount.get(workerProxy) ?? 0) + 1;
       workerRunCount.set(workerProxy, currentCount)
       if (currentCount > MAX_RUNS_PER_WORKER) { 
+        workerProxy = await replaceWorker(workerProxy)
         workerRunCount.delete(workerProxy)       
-        workerProxy = replaceWorker(workerProxy)
       }
 
       let retryCount = 0
