@@ -1,6 +1,6 @@
 {
   "name": "vite-ssg-optimized",
-  "version": "0.24.2-optimized.53",
+  "version": "0.24.2-optimized.54",
   "packageManager": "pnpm@9.14.4",
   "description": "Server-side generation for Vite",
   "author": "Anthony Fu <anthonyfu117@hotmail.com>",
@@ -85,7 +85,6 @@
     "prepublishOnly": "npm run build",
     "typecheck": "vue-tsc --noEmit",
     "release": "bumpp && pnpm publish"
-    
   },
   "peerDependencies": {
     "beasties": "^0.1.0",
