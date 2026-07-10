@@ -293,15 +293,12 @@ export async function build(ssgOptions: Partial<ViteSSGOptions & { 'skip-build'?
   const ssrManifest: Manifest = JSON.parse(ssrManifestRaw as string)
   let indexHTML = Buffer.from(await fs.readFile(join(out, 'index.html'), 'utf-8')).toString()
   indexHTML = rewriteScripts(indexHTML, script)
-  const IS_PROD = nodeEnv === 'production'  
+  const IS_PROD = nodeEnv === 'production'
   indexHTML = await formatHtml(indexHTML, IS_PROD ? 'minify' : formatting, minifyOptions)
 
   // const { renderToString }: typeof import('vue/server-renderer') = await import('vue/server-renderer')
-
-
   /* WeakMap<object,number> */
   const workerRunCount = new WeakMap()
-
 
   const MAX_RUNS_PER_WORKER=100;  
   let lastWorkerIndex = workers.length - 1;
@@ -716,20 +713,25 @@ async function renderHTML({
 }
 
 async function formatHtml(html: string, formatting: ViteSSGOptions['formatting'], opts: Options = {}) {
-  if (formatting === 'minify') {
-    const htmlMinifier = await import('html-minifier-terser')
-    return await htmlMinifier.minify(html, {
-      collapseWhitespace: true,
-      caseSensitive: true,
-      collapseInlineTagWhitespace: false,
-      minifyJS: true,
-      minifyCSS: true,
-      ...opts,
-    })
+  try {
+    if (formatting === 'minify') {
+      const htmlMinifier = await import('html-minifier-terser')
+      return await htmlMinifier.minify(html, {
+        collapseWhitespace: true,
+        caseSensitive: true,
+        collapseInlineTagWhitespace: false,
+        minifyJS: true,
+        minifyCSS: true,
+        ...opts,
+      })
+    }
+    else if (formatting === 'prettify') {
+      const prettier = (await import('prettier')).default
+      return await prettier.format(html, { semi: false, parser: 'html' })
+    }
   }
-  else if (formatting === 'prettify') {
-    const prettier = (await import('prettier')).default
-    return await prettier.format(html, { semi: false, parser: 'html' })
+  catch (_: any) {
+    void(_);
   }
   return html
 }
