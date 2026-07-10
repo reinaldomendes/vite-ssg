@@ -300,136 +300,126 @@ export async function build(ssgOptions: Partial<ViteSSGOptions & { 'skip-build'?
   /* WeakMap<object,number> */
   const workerRunCount = new WeakMap()
 
-  const MAX_RUNS_PER_WORKER=100;  
-  let lastWorkerIndex = workers.length - 1;
-  const workerProxyMap = new Map<BuildWorkerProxy, Promise<BuildWorkerProxy>>();
-  const workerTransitionPromises:Promise<void>[] = [];
-  const pendingTasks = ():Promise<any>[] => {
-    return Array.from(workerProxyMap.keys()).map(worker => workersInUse.get(worker) || []).flat();
+  const MAX_RUNS_PER_WORKER = 75
+  let lastWorkerIndex = workers.length - 1
+  const workerProxyMap = new Map<BuildWorkerProxy, Promise<BuildWorkerProxy>>()
+  const workerTransitionPromises: Promise<void>[] = []
+  const pendingTasks = (): Promise<any>[] => {
+    return Array.from(workerProxyMap.keys()).map(worker => workersInUse.get(worker) || []).flat()
   }
 
-  async function replaceWorker(workerProxy:BuildWorkerProxy):Promise<BuildWorkerProxy> {
-    if(workerProxyMap.has(workerProxy)){
+  async function replaceWorker(workerProxy: BuildWorkerProxy): Promise<BuildWorkerProxy> {
+    if (workerProxyMap.has(workerProxy)) {
       return await workerProxyMap.get(workerProxy)!
     }
     const index = workers.indexOf(workerProxy)
-    if(index === -1){
+    if (index === -1) {
       return workerProxy
     }
     ++lastWorkerIndex
     config.logger.info(`${blue("[vite-ssg]")} ${yellow(`Replace worker #${workerProxy.id} => #${lastWorkerIndex}`)}`)
-    
-    const workerPromises = workersInUse.get(workerProxy) || [];
-    
-    
+    const workerPromises = workersInUse.get(workerProxy) || []
     const transitionPromise = Promise.allSettled([...workerPromises, Promise.resolve()]).then(async () => {
       await new Promise(resolve => setTimeout(resolve, 4))
       await terminateWorker(workerProxy, onFinished)
-      workerTransitionPromises.splice(workerTransitionPromises.indexOf(transitionPromise), 1); //splice reference
-      workerProxyMap.delete(workerProxy) //delete reference at finish
+      workerTransitionPromises.splice(workerTransitionPromises.indexOf(transitionPromise), 1) // splice reference
+      workerProxyMap.delete(workerProxy) // delete reference at finish
     })
     workerTransitionPromises.push(transitionPromise)
-    workerProxyMap.set(workerProxy, Promise.resolve().then(async() => {
-        while (pendingTasks().length > (MAX_RUNS_PER_WORKER/5)) { //wait util less than 20% of the max runs per worker to avoid use too much memory
-          await new Promise(resolve => setTimeout(resolve, 300));
-
-        }
-        /** only 2 transition at time, wait util become available to create another proxy to avoid use too much memory */
-        while (workerTransitionPromises.length > 2) {
-          console.log(`${gray('[vite-ssg]')} ${yellow(`Waiting for worker transition to finish. ${workerTransitionPromises.length} transitions running`)}`)
-          await Promise.race(workerTransitionPromises);
-        }  
-        const  newWorkerProxy = createProxy({
-          ...createProxyOptions,
-          workerId: lastWorkerIndex
-        })    
-        workers[index] = newWorkerProxy
-        return newWorkerProxy;
-    }));
+    workerProxyMap.set(workerProxy, Promise.resolve().then(async () => {
+      while (pendingTasks().length > (MAX_RUNS_PER_WORKER / 5)) { // wait util less than 20% of the max runs per worker to avoid use too much memory
+        await new Promise(resolve => setTimeout(resolve, 300))
+      }
+      /** only 2 transition at time, wait util become available to create another proxy to avoid use too much memory */
+      while (workerTransitionPromises.length > 2) {
+        console.log(`${gray('[vite-ssg]')} ${yellow(`Waiting for worker transition to finish. ${workerTransitionPromises.length} transitions running`)}`)
+        await Promise.race(workerTransitionPromises)
+      }
+      const newWorkerProxy = createProxy({
+        ...createProxyOptions,
+        workerId: lastWorkerIndex,
+      })
+      workers[index] = newWorkerProxy
+      return newWorkerProxy
+    }))
     return await workerProxyMap.get(workerProxy)!
   }
 
-
   const queue = new PQueue({ concurrency })
-  let shouldBreak = false;
+  let shouldBreak = false
   const breakHandler = () => {
-    shouldBreak = true;
+    shouldBreak = true
     workers.forEach(worker => worker.unref())
   }
   process.once('SIGINT', breakHandler)
   process.once('SIGTERM', breakHandler)
   process.once('beforeExit', breakHandler)
   process.once('exit', breakHandler)
- 
   for (const route of routesPaths) {
-    if (shouldBreak) {     
+    if (shouldBreak) {
       console.log(`${gray('[vite-ssg]')} ${yellow('Build process interrupted.')}`)
-      break;      
+      break
     }
     await queue.onSizeLessThan(concurrency) // avoid grow the number of tasks in queue
-    queue.add(async () => {  
-      if (shouldBreak) {     
+    queue.add(async () => {
+      if (shouldBreak) {
         console.log(`${gray('[vite-ssg]')} ${yellow('Build process interrupted.')}`)
-        return Promise.resolve();      
+        return Promise.resolve()
       }
-      let workerProxy = await selectWorker(workerIndex ++ % numberOfWorkers)
-      const currentCount = (workerRunCount.get(workerProxy) ?? 0) + 1;
+      let workerProxy = await selectWorker(workerIndex++ % numberOfWorkers)
+      const currentCount = (workerRunCount.get(workerProxy) ?? 0) + 1
       workerRunCount.set(workerProxy, currentCount)
-      if (currentCount > MAX_RUNS_PER_WORKER) { 
+      if (currentCount > MAX_RUNS_PER_WORKER) {
         workerProxy = await replaceWorker(workerProxy)
-        workerRunCount.delete(workerProxy)       
+        workerRunCount.delete(workerProxy)
       }
 
       let retryCount = 0
       const maxRetries = 3
-      const execOpts:ExecuteInWorkerOptions = {      
-          route,
-          ssrManifest,
-          indexHTML,
-          rootContainerId,
-          formatting,
-          minifyOptions,
-          // out,
-          // dirStyle,
-          beastiesOptions,          
-          serverEntry,
-      
+      const execOpts: ExecuteInWorkerOptions = {
+        route,
+        ssrManifest,
+        indexHTML,
+        rootContainerId,
+        formatting,
+        minifyOptions,
+        // out,
+        // dirStyle,
+        beastiesOptions,
+        serverEntry,
       }
-      
       const taskPromise = executeTaskInWorker(workerProxy, execOpts)
 
       const workerPromises = workersInUse.get(workerProxy) || []
       workerPromises.push(taskPromise)
       workersInUse.set(workerProxy, workerPromises)
 
-
-      const retryFn = async (e:any):Promise<any> => {
-        if ( (retryCount++) < maxRetries) {          
+      const retryFn = async (e: any): Promise<any> => {
+        if ((retryCount++) < maxRetries) {
           console.log(`${gray('[vite-ssg]')} ${yellow(`Retrying ${retryCount} of ${maxRetries} for route: ${cyan(route)}`)}`)
           return await executeTaskInWorker(workerProxy, execOpts).catch(retryFn)
         }
         throw e
       }
-      //add catch and finaly
+      // add catch and finaly
       taskPromise
         .catch(retryFn)
         .finally(() => {
           const workerPromises = workersInUse.get(workerProxy) || []
           const foundIndex = workerPromises.indexOf(taskPromise)
-          if(foundIndex > -1){
+          if (foundIndex > -1) {
             workerPromises.splice(foundIndex, 1)
-          }          
+          }
           workersInUse.set(workerProxy, workerPromises)
         })
-        
-        return taskPromise
+      return taskPromise
       // const timerPromise = new Promise(resolve => setTimeout(resolve, 100))
       // return Promise.all([taskPromise, timerPromise]).then(() => taskPromise)
     })
   }
 
   await queue.start().onIdle()
-  await terminateWorkers(onFinished);
+  await terminateWorkers(onFinished)
 
   if (!ssgOptions['skip-build']) {
     await fs.remove(ssgOut)
@@ -455,62 +445,56 @@ export async function build(ssgOptions: Partial<ViteSSGOptions & { 'skip-build'?
   timeout.unref() // don't wait for timeout
 }
 
-
-
-export interface ExecuteInWorkerOptions {  
-  route: string  
+export interface ExecuteInWorkerOptions {
+  route: string
   serverEntry: string
-  ssrManifest: Manifest 
-  indexHTML: string    
+  ssrManifest: Manifest
+  indexHTML: string
   rootContainerId: string
   formatting: ViteSSGOptions['formatting']
   beastiesOptions: ViteSSGOptions['beastiesOptions'] | ViteSSGOptions['crittersOptions'] | false
-  minifyOptions: Options  
+  minifyOptions: Options
   // out: string
-  // dirStyle: ViteSSGOptions['dirStyle']   
+  // dirStyle: ViteSSGOptions['dirStyle']
 }
-
 
 function executeTaskInWorker(worker: BuildWorkerProxy, opts: ExecuteInWorkerOptions) {
- return execInWorker(worker, executeTaskFn, opts) 
+  return execInWorker(worker, executeTaskFn, opts)
 }
 
-
-export async function execInWorker<T extends (...args:any[]) => any>(worker: BuildWorkerProxy, fn:T, ...args:any[]) : Promise<Awaited<ReturnType<T>>> {
+export async function execInWorker<T extends (...args: any[]) => any>(worker: BuildWorkerProxy, fn: T, ...args: any[]) : Promise<Awaited<ReturnType<T>>> {
   //@ts-ignore
   return await worker.send(fn.name, plainify(args ?? [])) as Awaited<ReturnType<T>>
 }
-
-
 export interface CreateTaskFnOptions extends Omit<ExecuteInWorkerOptions, 'beastiesOptions'> {  
   out: string
   dirStyle: ViteSSGOptions['dirStyle']
   createApp: CreateAppFactory
-  renderToString: typeof import('vue/server-renderer')['renderToString']  
+  renderToString: typeof import('vue/server-renderer')['renderToString']
   // onDonePageRender?: ViteSSGOptions['onDonePageRender']
   onBeforePageRender?: ViteSSGOptions['onBeforePageRender']
-  onPageRendered?: ViteSSGOptions['onPageRendered']  
+  onPageRendered?: ViteSSGOptions['onPageRendered']
   beasties: Critters | Beasties | undefined
-  config: {logger: {info: (msg: string) => void}}
+  config: { logger: { info: (msg: string) => void } }
 }
 
 export async function executeTaskFn(opts: CreateTaskFnOptions) {
   const {
-    route, 
-    createApp, 
-    renderToString, 
-    indexHTML, 
-    onBeforePageRender, 
-    // onDonePageRender, 
-    onPageRendered, 
-    ssrManifest, 
-    rootContainerId, 
-    formatting, 
-    minifyOptions, 
-    beasties, 
-    out, 
-    dirStyle, 
-    config
+    route,
+    createApp,
+    renderToString,
+    indexHTML,
+    onBeforePageRender,
+    // onDonePageRender,
+    onPageRendered,
+    ssrManifest,
+    rootContainerId,
+    formatting,
+    minifyOptions,
+    beasties,
+    out,
+    dirStyle,
+    config,
   } = opts
   try {
     const appCtx = await createApp(false, route) as ViteSSGContext<true>
@@ -530,9 +514,9 @@ export async function executeTaskFn(opts: CreateTaskFnOptions) {
 
     /** replace slower jsdom to use unhead/ssr and injectInHtml utils */
     // render current page's preloadLinks
-    const preloads:string[] = buildPreloadLinks({ html: transformedIndexHTML }, ctx.modules || new Set<string>(), ssrManifest)
+    const preloads: string[] = buildPreloadLinks({ html: transformedIndexHTML }, ctx.modules || new Set<string>(), ssrManifest)
     let ssrHead = {
-      headTags: preloads.join("\n"),
+      headTags: preloads.join('\n'),
       bodyAttrs: '',
       htmlAttrs: '',
       bodyTagsOpen: '',
@@ -541,7 +525,7 @@ export async function executeTaskFn(opts: CreateTaskFnOptions) {
     if (head) {
       const tmpSSrHead = await renderSSRHead(head as any)
       ssrHead = Object.assign(tmpSSrHead, {
-        headTags: [tmpSSrHead.headTags.trim(), ssrHead.headTags].filter(x => !!x).join("\n"),
+        headTags: [tmpSSrHead.headTags.trim(), ssrHead.headTags].filter(x => !!x).join('\n'),
       })
     }
 
@@ -554,16 +538,14 @@ export async function executeTaskFn(opts: CreateTaskFnOptions) {
       teleports: ctx.teleports,
     })
 
-    
-
     let transformed = (await onPageRendered?.(route, html, appCtx)) || html
     if (beasties)
       transformed = await beasties.process(transformed)
 
     const formatted = await formatHtml(transformed, formatting, {
-      collapseWhitespace : false,
-      collapseInlineTagWhitespace : false,
-      ...minifyOptions
+      collapseWhitespace: false,
+      collapseInlineTagWhitespace: false,
+      ...minifyOptions,
     })
 
     const relativeRouteFile = `${(route.endsWith('/')
